@@ -39,13 +39,11 @@
 #include "clock_config.h"
 #include "MK64F12.h"
 #include "fsl_debug_console.h"
-/* TODO: insert other include files here. */
+#include "fsl_port.h"
+#include "fsl_gpio.h"
+#include "fsl_pit.h"
 
-/* TODO: insert other definitions and declarations here. */
 
-/*
- * @brief   Application entry point.
- */
 int main(void) {
 
   	/* Init board hardware. */
@@ -55,6 +53,94 @@ int main(void) {
   	/* Init FSL debug console. */
     BOARD_InitDebugConsole();
 
+    //Clock to enable the switch PTA4
+	CLOCK_EnableClock(kCLOCK_PortA);
+	//Clock to enable the leds RED(PTB22) and BLUE(PTB21)
+	CLOCK_EnableClock(kCLOCK_PortB);
+	//Clock to enable the switch PTC6
+	CLOCK_EnableClock(kCLOCK_PortC);
+	//Clock to enable the led GREEN PTE26
+	CLOCK_EnableClock(kCLOCK_PortE);
+
+	//Configuration of the BLUE led
+	port_pin_config_t config_led_blue =
+	{ kPORT_PullDisable, kPORT_SlowSlewRate, kPORT_PassiveFilterDisable,
+			kPORT_OpenDrainDisable, kPORT_LowDriveStrength, kPORT_MuxAsGpio,
+			kPORT_UnlockRegister,
+	};
+	//Set the configuration of the BLUE led
+	PORT_SetPinConfig(PORTB, 21, &config_led_blue);
+
+
+	//Configuration of the RED led
+	port_pin_config_t config_led_red =
+	{ kPORT_PullDisable, kPORT_SlowSlewRate, kPORT_PassiveFilterDisable,
+			kPORT_OpenDrainDisable, kPORT_LowDriveStrength, kPORT_MuxAsGpio,
+			kPORT_UnlockRegister,
+	};
+	//Set the configuration of the RED led
+	PORT_SetPinConfig(PORTB, 22, &config_led_red);
+
+
+	//Configuration of the GREEN led
+	port_pin_config_t config_led_green =
+	{ kPORT_PullDisable, kPORT_SlowSlewRate, kPORT_PassiveFilterDisable,
+			kPORT_OpenDrainDisable, kPORT_LowDriveStrength, kPORT_MuxAsGpio,
+			kPORT_UnlockRegister,
+	};
+	//Set the configuration of the GREEN led
+	PORT_SetPinConfig(PORTE, 26, &config_led_green);
+
+
+	//Configuration of the SWITCH 2
+	port_pin_config_t config_switch2 =
+	{ kPORT_PullDisable, kPORT_SlowSlewRate, kPORT_PassiveFilterDisable,
+			kPORT_OpenDrainDisable, kPORT_LowDriveStrength, kPORT_MuxAsGpio,
+			kPORT_UnlockRegister
+	};
+	//Set the interruption mode of SWITCH 2
+	PORT_SetPinInterruptConfig(PORTA, 4, kPORT_InterruptFallingEdge);
+	//Set the configuration of the SWITCH 2
+	PORT_SetPinConfig(PORTC, 6, &config_switch2);
+
+
+	//Configuration of the SWITCH 3
+	port_pin_config_t config_switch3 =
+	{ kPORT_PullDisable, kPORT_SlowSlewRate, kPORT_PassiveFilterDisable,
+			kPORT_OpenDrainDisable, kPORT_LowDriveStrength, kPORT_MuxAsGpio,
+			kPORT_UnlockRegister
+	};
+	//Set the interruption mode of SWITCH 3
+	PORT_SetPinInterruptConfig(PORTA, 4, kPORT_InterruptFallingEdge);
+	//Set the configuration of the SWITCH 3
+	PORT_SetPinConfig(PORTA, 4, &config_switch3);
+
+
+	gpio_pin_config_t led_config_gpio =
+	{ kGPIO_DigitalOutput, 1 };
+
+	GPIO_PinInit(GPIOB, 21, &led_config_gpio);
+	GPIO_PinInit(GPIOB, 22, &led_config_gpio);
+	GPIO_PinInit(GPIOE, 26, &led_config_gpio);
+
+
+	gpio_pin_config_t switch_config_gpio =
+	{ kGPIO_DigitalInput, 1 };
+
+	GPIO_PinInit(GPIOA, 4, &switch_config_gpio);
+	GPIO_PinInit(GPIOC, 6, &switch_config_gpio);
+
+
+	pit_config_t config_pit0;
+
+	PIT_GetDefaultConfig(&config_pit0);
+	PIT_Init (kPIT_Chnl_0, &config_pit0);
+	PIT_EnableInterrupts (PIT, kPIT_Chnl_0, kPIT_TimerInterruptEnable);
+	PIT_GetEnabledInterrupts(PIT, kPIT_Chnl_0);
+
+
+	NVIC_EnableIRQ(PORTA_IRQn);
+	NVIC_EnableIRQ(PORTC_IRQn);
 
     /* Force the counter to be placed into memory. */
     volatile static int i = 0 ;
