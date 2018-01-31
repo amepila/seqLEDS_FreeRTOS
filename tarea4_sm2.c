@@ -62,8 +62,8 @@ uint8_t sequence_led(uint8_t type_sequence)
 		}
 		if(1 == type_sequence)
 		{
-			state = (1 > state)?3:state;
 			state--;
+			state = (1 > state)?3:state;
 		}
 
 		if(1 == state)
