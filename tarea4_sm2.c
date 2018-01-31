@@ -62,7 +62,7 @@ uint8_t sequence_led(uint8_t type_sequence)
 		}
 		if(1 == type_sequence)
 		{
-			state = (0 == state)?3:state;
+			state = (1 > state)?3:state;
 			state--;
 		}
 
@@ -94,11 +94,12 @@ void PORTA_IRQHandler()
 	Interruptor = (0 == Interruptor)?1:0;
 	PIT_StartTimer(PIT, kPIT_Chnl_0);
 	PORT_ClearPinsInterruptFlags(PORTA, SWITCH3_MASK);
-	PORT_ClearPinsInterruptFlags(PORTC, SWITCH2_MASK);
 }
 void PORTC_IRQHandler()
 {
 	PIT_StopTimer(PIT, kPIT_Chnl_0);
+	PORT_ClearPinsInterruptFlags(PORTC, SWITCH2_MASK);
+
 }
 
 
