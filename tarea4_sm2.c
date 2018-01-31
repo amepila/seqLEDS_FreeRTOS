@@ -43,81 +43,65 @@
 #include "fsl_gpio.h"
 #include "fsl_pit.h"
 
-#define SWITCH2_MASK	(16U)
-#define SWITCH3_MASK	(64U)
-#define SECOND_TICK		(105000000U)
+#define SWITCH2_MASK	(1<<6)
+#define SWITCH3_MASK	(1<<4)
+#define SECOND_TICK		(55000000U)
+
+static uint8_t Interruptor = 0;
+
+uint8_t sequence_led(uint8_t type_sequence)
+{
+	static uint8_t state = 0;
+
+	if(1 == PIT_GetStatusFlags(PIT, kPIT_Chnl_0))
+	{
+		if(0 == type_sequence)
+		{
+			state++;
+			state = (4 == state)?0:state;
+		}
+		if(1 == type_sequence)
+		{
+			state = (0 == state)?3:state;
+			state--;
+		}
+
+		if(1 == state)
+		{
+			GPIO_WritePinOutput(GPIOE,26,1);
+			GPIO_WritePinOutput(GPIOB,22,0);
+			GPIO_WritePinOutput(GPIOB,21,1);
+		}
+		if(2 == state)
+		{
+			GPIO_WritePinOutput(GPIOE,26,0);
+			GPIO_WritePinOutput(GPIOB,22,1);
+			GPIO_WritePinOutput(GPIOB,21,1);
+		}
+		if(3 == state)
+		{
+			GPIO_WritePinOutput(GPIOE,26,1);
+			GPIO_WritePinOutput(GPIOB,22,1);
+			GPIO_WritePinOutput(GPIOB,21,0);
+		}
+    	PIT_ClearStatusFlags(PIT, kPIT_Chnl_0, kPIT_TimerFlag);
+	}
+	return (state);
+}
 
 void PORTA_IRQHandler()
 {
-	static uint8_t state = 0;
+	Interruptor = (0 == Interruptor)?1:0;
+	PIT_StartTimer(PIT, kPIT_Chnl_0);
 	PORT_ClearPinsInterruptFlags(PORTA, SWITCH3_MASK);
-
-	//GPIO_WritePinOutput(GPIOB,21,state);
-	//state = ( 0 == state ) ? 1 : 0;
+	PORT_ClearPinsInterruptFlags(PORTC, SWITCH2_MASK);
 }
-
 void PORTC_IRQHandler()
 {
-	static uint8_t state = 0;
-	PORT_ClearPinsInterruptFlags(PORTC, SWITCH2_MASK);
-
-	//GPIO_WritePinOutput(GPIOB,21,state);
-	//state = ( 0 == state ) ? 1 : 0;
+	PIT_StopTimer(PIT, kPIT_Chnl_0);
 }
 
-uint8_t normal_Sequence(uint8_t state_normal)
-{
-	if(0 == state_normal)
-	{
-		GPIO_WritePinOutput(GPIOE,26,1);
-		GPIO_WritePinOutput(GPIOB,22,0);
-		GPIO_WritePinOutput(GPIOB,21,1);
-	}
-	if(1 == state_normal)
-	{
-		GPIO_WritePinOutput(GPIOE,26,0);
-		GPIO_WritePinOutput(GPIOB,22,1);
-		GPIO_WritePinOutput(GPIOB,21,1);
-	}
-	if(2 == state_normal)
-	{
-		GPIO_WritePinOutput(GPIOE,26,1);
-		GPIO_WritePinOutput(GPIOB,22,1);
-		GPIO_WritePinOutput(GPIOB,21,0);
-	}
 
-	state_normal++;
-
-	return (state_normal);
-
-}
-
-uint8_t inverse_Sequence(uint8_t state_inverse)
-{
-	if(0 == state_inverse)
-	{
-		GPIO_WritePinOutput(GPIOE,26,1);
-		GPIO_WritePinOutput(GPIOB,22,0);
-		GPIO_WritePinOutput(GPIOB,21,1);
-	}
-	if(1 == state_inverse)
-	{
-		GPIO_WritePinOutput(GPIOE,26,0);
-		GPIO_WritePinOutput(GPIOB,22,1);
-		GPIO_WritePinOutput(GPIOB,21,1);
-	}
-	if(2 == state_inverse)
-	{
-		GPIO_WritePinOutput(GPIOE,26,1);
-		GPIO_WritePinOutput(GPIOB,22,1);
-		GPIO_WritePinOutput(GPIOB,21,0);
-	}
-
-	state_inverse++;
-
-	return (state_inverse);
-
-}
 int main(void) {
 
   	/* Init board hardware. */
@@ -127,11 +111,11 @@ int main(void) {
   	/* Init FSL debug console. */
     BOARD_InitDebugConsole();
 
-    //Clock to enable the switch PTA4
+    //Clock to enable the switch3 PTA4
 	CLOCK_EnableClock(kCLOCK_PortA);
 	//Clock to enable the leds RED(PTB22) and BLUE(PTB21)
 	CLOCK_EnableClock(kCLOCK_PortB);
-	//Clock to enable the switch PTC6
+	//Clock to enable the switch2 PTC6
 	CLOCK_EnableClock(kCLOCK_PortC);
 	//Clock to enable the led GREEN PTE26
 	CLOCK_EnableClock(kCLOCK_PortE);
@@ -158,16 +142,16 @@ int main(void) {
 			kPORT_OpenDrainDisable, kPORT_LowDriveStrength, kPORT_MuxAsGpio,
 			kPORT_UnlockRegister
 	};
-	//Set the interruption mode of SWITCH 2
-	PORT_SetPinInterruptConfig(PORTA, 4, kPORT_InterruptFallingEdge);
-	//Set the configuration of the SWITCH 2
-	PORT_SetPinConfig(PORTC, 6, &config_switch);
-
-
 	//Set the interruption mode of SWITCH 3
 	PORT_SetPinInterruptConfig(PORTA, 4, kPORT_InterruptFallingEdge);
 	//Set the configuration of the SWITCH 3
 	PORT_SetPinConfig(PORTA, 4, &config_switch);
+
+
+	//Set the interruption mode of SWITCH 2
+	PORT_SetPinInterruptConfig(PORTC, 6, kPORT_InterruptFallingEdge);
+	//Set the configuration of the SWITCH 2
+	PORT_SetPinConfig(PORTC, 6, &config_switch);
 
 
 	gpio_pin_config_t led_config_gpio =
@@ -193,28 +177,21 @@ int main(void) {
 	PIT_GetEnabledInterrupts(PIT, kPIT_Chnl_0);
 	PIT_SetTimerPeriod (PIT, kPIT_Chnl_0, SECOND_TICK);
 
+	NVIC_SetPriority(PORTA_IRQn, 9);
+	NVIC_SetPriority(PORTC_IRQn, 9);
+	NVIC_SetPriority(PIT0_IRQn, 10);
+
 	NVIC_EnableIRQ(PORTA_IRQn);
 	NVIC_EnableIRQ(PORTC_IRQn);
 
-	GPIO_WritePinOutput(GPIOB,22,0);
-
-	volatile uint8_t state = 0;
-
-	normal_Sequence(state);
+	PIT_StartTimer(PIT, kPIT_Chnl_0);
 
     while(1)
     {
-    	PIT_StartTimer(PIT, kPIT_Chnl_0);
-
-    	if(1 == PIT_GetStatusFlags(PIT, kPIT_Chnl_0))
+    	if(0 == PORT_GetPinsInterruptFlags(PORTC))
     	{
-    		state = normal_Sequence(state);
-    		state = (3 == state)?0:state;
-
-        	PIT_ClearStatusFlags(PIT, kPIT_Chnl_0, kPIT_TimerFlag);
+        	sequence_led(Interruptor);
     	}
-
     }
-
-    return 0 ;
+    return 0;
 }
