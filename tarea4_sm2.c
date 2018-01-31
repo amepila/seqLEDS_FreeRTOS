@@ -65,7 +65,59 @@ void PORTC_IRQHandler()
 	//state = ( 0 == state ) ? 1 : 0;
 }
 
+uint8_t normal_Sequence(uint8_t state_normal)
+{
+	if(0 == state_normal)
+	{
+		GPIO_WritePinOutput(GPIOE,26,1);
+		GPIO_WritePinOutput(GPIOB,22,0);
+		GPIO_WritePinOutput(GPIOB,21,1);
+	}
+	if(1 == state_normal)
+	{
+		GPIO_WritePinOutput(GPIOE,26,0);
+		GPIO_WritePinOutput(GPIOB,22,1);
+		GPIO_WritePinOutput(GPIOB,21,1);
+	}
+	if(2 == state_normal)
+	{
+		GPIO_WritePinOutput(GPIOE,26,1);
+		GPIO_WritePinOutput(GPIOB,22,1);
+		GPIO_WritePinOutput(GPIOB,21,0);
+	}
 
+	state_normal++;
+
+	return (state_normal);
+
+}
+
+uint8_t inverse_Sequence(uint8_t state_inverse)
+{
+	if(0 == state_inverse)
+	{
+		GPIO_WritePinOutput(GPIOE,26,1);
+		GPIO_WritePinOutput(GPIOB,22,0);
+		GPIO_WritePinOutput(GPIOB,21,1);
+	}
+	if(1 == state_inverse)
+	{
+		GPIO_WritePinOutput(GPIOE,26,0);
+		GPIO_WritePinOutput(GPIOB,22,1);
+		GPIO_WritePinOutput(GPIOB,21,1);
+	}
+	if(2 == state_inverse)
+	{
+		GPIO_WritePinOutput(GPIOE,26,1);
+		GPIO_WritePinOutput(GPIOB,22,1);
+		GPIO_WritePinOutput(GPIOB,21,0);
+	}
+
+	state_inverse++;
+
+	return (state_inverse);
+
+}
 int main(void) {
 
   	/* Init board hardware. */
@@ -146,14 +198,19 @@ int main(void) {
 
 	GPIO_WritePinOutput(GPIOB,22,0);
 
+	volatile uint8_t state = 0;
+
+	normal_Sequence(state);
+
     while(1)
     {
     	PIT_StartTimer(PIT, kPIT_Chnl_0);
 
     	if(1 == PIT_GetStatusFlags(PIT, kPIT_Chnl_0))
     	{
-    		GPIO_WritePinOutput(GPIOB,22,1);
-    		GPIO_WritePinOutput(GPIOB,21,0);
+    		state = normal_Sequence(state);
+    		state = (3 == state)?0:state;
+
         	PIT_ClearStatusFlags(PIT, kPIT_Chnl_0, kPIT_TimerFlag);
     	}
 
