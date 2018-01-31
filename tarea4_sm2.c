@@ -43,63 +43,81 @@
 #include "fsl_gpio.h"
 #include "fsl_pit.h"
 
+//Mask of the pin PTC6
 #define SWITCH2_MASK	(1<<6)
+//Mask of the pin PTA4
 #define SWITCH3_MASK	(1<<4)
+//CLK = 120MHz then BUS CLK = 60MHz
 #define SECOND_TICK		(60000000U)
 
-static uint8_t Interruptor = 0;
+//Interrupter to change
+static uint8_t Interrupter = 0;
 
-uint8_t sequence_led(uint8_t type_sequence)
+//Function to manipulate the sequence of leds
+void sequence_led(uint8_t type_sequence)
 {
+	//This variable switches the color of led
 	static uint8_t state = 0;
 
+	//Conditional to detect the count of PIT
 	if(1 == PIT_GetStatusFlags(PIT, kPIT_Chnl_0))
 	{
+		//Set the normal sequence of leds
 		if(0 == type_sequence)
 		{
 			state++;
+			//Control of the upper limit
 			state = (4 == state)?1:state;
 		}
+		//Set the inverse sequence of leds
 		if(1 == type_sequence)
 		{
 			state--;
+			//Control of the inferior limit
 			state = (1 > state)?3:state;
 		}
 
+		//Turn up the red led
 		if(1 == state)
 		{
 			GPIO_WritePinOutput(GPIOE,26,1);
 			GPIO_WritePinOutput(GPIOB,22,0);
 			GPIO_WritePinOutput(GPIOB,21,1);
 		}
+		//Turn up the green led
 		if(2 == state)
 		{
 			GPIO_WritePinOutput(GPIOE,26,0);
 			GPIO_WritePinOutput(GPIOB,22,1);
 			GPIO_WritePinOutput(GPIOB,21,1);
 		}
+		//Turn up the blue led
 		if(3 == state)
 		{
 			GPIO_WritePinOutput(GPIOE,26,1);
 			GPIO_WritePinOutput(GPIOB,22,1);
 			GPIO_WritePinOutput(GPIOB,21,0);
 		}
+		//Clear the PIT flag
     	PIT_ClearStatusFlags(PIT, kPIT_Chnl_0, kPIT_TimerFlag);
 	}
-	return (state);
 }
 
 void PORTA_IRQHandler()
 {
-	Interruptor = (0 == Interruptor)?1:0;
+	//Toggles the interrupter
+	Interrupter = (0 == Interrupter)?1:0;
+	//Restart the count of PIT
 	PIT_StartTimer(PIT, kPIT_Chnl_0);
+	//Clean the portA flag
 	PORT_ClearPinsInterruptFlags(PORTA, SWITCH3_MASK);
 }
 void PORTC_IRQHandler()
 {
+	//Stop the count of PIT
 	PIT_StopTimer(PIT, kPIT_Chnl_0);
+	//Clear the portC flag
 	PORT_ClearPinsInterruptFlags(PORTC, SWITCH2_MASK);
-
 }
 
 
@@ -154,7 +172,7 @@ int main(void) {
 	//Set the configuration of the SWITCH 2
 	PORT_SetPinConfig(PORTC, 6, &config_switch);
 
-
+	//Led like output
 	gpio_pin_config_t led_config_gpio =
 	{ kGPIO_DigitalOutput, 1 };
 
@@ -162,7 +180,7 @@ int main(void) {
 	GPIO_PinInit(GPIOB, 22, &led_config_gpio);
 	GPIO_PinInit(GPIOE, 26, &led_config_gpio);
 
-
+	//Switch like input
 	gpio_pin_config_t switch_config_gpio =
 	{ kGPIO_DigitalInput, 1 };
 
@@ -171,27 +189,36 @@ int main(void) {
 
 
 	pit_config_t config_pit0;
-
+	//PIT with default configuration
 	PIT_GetDefaultConfig(&config_pit0);
+
+	//Initial configuration to PIT0
 	PIT_Init (PIT, &config_pit0);
 	PIT_EnableInterrupts (PIT, kPIT_Chnl_0, kPIT_TimerInterruptEnable);
 	PIT_GetEnabledInterrupts(PIT, kPIT_Chnl_0);
+
+	//Set the period of 1 second
 	PIT_SetTimerPeriod (PIT, kPIT_Chnl_0, SECOND_TICK);
 
+	//Set the priority of all interruptions
 	NVIC_SetPriority(PORTA_IRQn, 9);
 	NVIC_SetPriority(PORTC_IRQn, 9);
 	NVIC_SetPriority(PIT0_IRQn, 10);
 
+	//Enable the interruptions of Ports A and B
 	NVIC_EnableIRQ(PORTA_IRQn);
 	NVIC_EnableIRQ(PORTC_IRQn);
 
+	//Initialization of the PIT count
 	PIT_StartTimer(PIT, kPIT_Chnl_0);
 
     while(1)
     {
+    	//Verifies if the switch 2 is not pressed
     	if(0 == PORT_GetPinsInterruptFlags(PORTC))
     	{
-        	sequence_led(Interruptor);
+    		//Sequence is executed
+        	sequence_led(Interrupter);
     	}
     }
     return 0;
