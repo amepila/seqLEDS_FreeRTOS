@@ -45,7 +45,7 @@
 
 #define SWITCH2_MASK	(1<<6)
 #define SWITCH3_MASK	(1<<4)
-#define SECOND_TICK		(55000000U)
+#define SECOND_TICK		(60000000U)
 
 static uint8_t Interruptor = 0;
 
